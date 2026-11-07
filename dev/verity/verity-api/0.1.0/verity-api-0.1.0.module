@@ -1,0 +1,100 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "dev.verity",
+    "module": "verity-api",
+    "version": "0.1.0",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "8.14.3"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 8,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api"
+      },
+      "files": [
+        {
+          "name": "verity-api-0.1.0.jar",
+          "url": "verity-api-0.1.0.jar",
+          "size": 4995,
+          "sha512": "1c20cfafb32f3148856b7f3d40ad3623635100b1d33bfc9189dc83ffeb11ae015b0a1e701e875788f4a341308ec9938241d97bb1b0afe0b42f6e79c44295a1bf",
+          "sha256": "85959191ce768baf9542714f17606896cf48659506c472ccdf72438ebf114607",
+          "sha1": "4028c37c7015fce41f15107a26def4eba80984c6",
+          "md5": "dd3cf4f63d67a5b2c7ac97275e108c93"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 8,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "verity-api-0.1.0.jar",
+          "url": "verity-api-0.1.0.jar",
+          "size": 4995,
+          "sha512": "1c20cfafb32f3148856b7f3d40ad3623635100b1d33bfc9189dc83ffeb11ae015b0a1e701e875788f4a341308ec9938241d97bb1b0afe0b42f6e79c44295a1bf",
+          "sha256": "85959191ce768baf9542714f17606896cf48659506c472ccdf72438ebf114607",
+          "sha1": "4028c37c7015fce41f15107a26def4eba80984c6",
+          "md5": "dd3cf4f63d67a5b2c7ac97275e108c93"
+        }
+      ]
+    },
+    {
+      "name": "sourcesElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "verity-api-0.1.0-sources.jar",
+          "url": "verity-api-0.1.0-sources.jar",
+          "size": 3453,
+          "sha512": "45937249f9b5ac79a36beaa58842d1b0b5b5328afcf2c850f708c93aeba25dbd24a1f73037984981d2c742cd652deb9421edfce0db463de8bc9b2bd175fc5150",
+          "sha256": "3e05e195944be58f0c00a33ccfbd0214258024fc567862837da2bb6ac7912133",
+          "sha1": "acd799ea7d25d98ec3bd7d2e9fcf4555cb5e3dc3",
+          "md5": "572b06f742846b9beddf84355817850c"
+        }
+      ]
+    },
+    {
+      "name": "javadocElements",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "javadoc",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "verity-api-0.1.0-javadoc.jar",
+          "url": "verity-api-0.1.0-javadoc.jar",
+          "size": 94943,
+          "sha512": "fbaa5c45aa9accba81db5ca08ad797e39d3677d5e3a5abc9a616a7a91582bf4ebed8db4863236efee9de1d6a50096dda9262126065dd6c6a6e49fc49fd53454c",
+          "sha256": "d3233220cfe23bc6cdf47d8addcb44a8d4f87020d6154e8f14dfa45af6d7da22",
+          "sha1": "b4dff5052ecb3f64c00b4ad84be120d6419f95d7",
+          "md5": "383d7e7c50d5bb8b623d310e98586296"
+        }
+      ]
+    }
+  ]
+}
