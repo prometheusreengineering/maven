@@ -1,7 +1,7 @@
 {
   "formatVersion": "1.1",
   "component": {
-    "group": "dev.verity",
+    "group": "ing.prometheusreengineer.verity",
     "module": "verity-api",
     "version": "0.1.0",
     "attributes": {
