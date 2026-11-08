@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prometheus Maven</title>
+<style>
+  :root {
+    --bg: #fafaf9; --panel: #ffffff; --text: #1c1917; --muted: #78716c;
+    --border: #e7e5e4; --accent: #c2410c; --accent-bg: #fff7ed; --code-bg: #f5f5f4;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0c0a09; --panel: #1c1917; --text: #f5f5f4; --muted: #a8a29e;
+      --border: #292524; --accent: #fb923c; --accent-bg: #2a1a10; --code-bg: #141210;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  header, main { max-width: 960px; margin: 0 auto; padding: 0 16px; }
+  header { padding-top: 32px; padding-bottom: 8px; }
+  header h1 { margin: 0; font-size: 22px; }
+  header h1 a { color: var(--text); }
+  header p { margin: 4px 0 0; color: var(--muted); }
+  .crumbs { font-family: var(--mono); font-size: 13px; margin: 16px 0; word-break: break-all; }
+  .crumbs span { color: var(--muted); }
+  input[type=search] {
+    width: 100%; padding: 10px 12px; font: inherit; color: var(--text);
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+  }
+  input[type=search]:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    margin: 16px 0; overflow: hidden;
+  }
+  .card h2 {
+    margin: 0; padding: 10px 14px; font-size: 13px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--border);
+  }
+  .row {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+    padding: 10px 14px; border-bottom: 1px solid var(--border);
+  }
+  .row:last-child { border-bottom: 0; }
+  .row .name { font-family: var(--mono); word-break: break-all; }
+  .row .meta { color: var(--muted); font-size: 13px; white-space: nowrap; }
+  .group { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .badge {
+    display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 4px;
+    background: var(--accent-bg); color: var(--accent); margin-left: 6px; font-family: system-ui, sans-serif;
+  }
+  .tabs { display: flex; border-bottom: 1px solid var(--border); overflow-x: auto; }
+  .tabs button {
+    font: inherit; font-size: 13px; padding: 8px 14px; background: none; border: 0;
+    border-bottom: 2px solid transparent; color: var(--muted); cursor: pointer; white-space: nowrap;
+  }
+  .tabs button[aria-selected=true] { color: var(--text); border-bottom-color: var(--accent); }
+  .snippet { position: relative; }
+  pre {
+    margin: 0; padding: 14px; background: var(--code-bg); font: 13px/1.5 var(--mono);
+    overflow-x: auto; white-space: pre;
+  }
+  .copy {
+    position: absolute; top: 8px; right: 8px; font: 12px system-ui, sans-serif; padding: 4px 8px;
+    background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 4px; cursor: pointer;
+  }
+  .desc { padding: 10px 14px; margin: 0; }
+  .scope { font-size: 12px; color: var(--muted); }
+  .sums a { font-size: 12px; margin-left: 8px; }
+  .msg { color: var(--muted); padding: 24px 0; }
+  .err { color: #dc2626; }
+  footer { max-width: 960px; margin: 32px auto; padding: 0 16px; color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1><a href="#/">Prometheus Maven</a></h1>
+  <p id="repo-url"></p>
+</header>
+<main id="app"><p class="msg">Loading…</p></main>
+<footer>Index built live from the GitHub repository tree.</footer>
+
+<script>
+// Where the files live on GitHub. The tree API is the only way to list them,
+// because GitHub Pages has no directory listings.
+const OWNER = "prometheusreengineering";
+const REPO = "maven";
+const BRANCH = "main";
+const CACHE_TTL_MS = 10 * 60 * 1000;
+
+// The repository root is the directory this page is served from.
+const REPO_URL = new URL(".", location.href).href;
+
+const CHECKSUM_RE = /\.(md5|sha1|sha256|sha512|asc)$/;
+
+const app = document.getElementById("app");
+document.getElementById("repo-url").textContent = REPO_URL;
+
+const esc = s => String(s).replace(/[&<>"']/g, c =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+function formatSize(n) {
+  if (n == null) return "";
+  if (n < 1024) return n + " B";
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB";
+  return (n / 1024 / 1024).toFixed(1) + " MB";
+}
+
+function compareVersions(a, b) {
+  const pa = a.split(/[.\-+]/), pb = b.split(/[.\-+]/);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const x = pa[i] ?? "", y = pb[i] ?? "";
+    const nx = /^\d+$/.test(x), ny = /^\d+$/.test(y);
+    if (nx && ny) { const d = +x - +y; if (d) return d; }
+    else if (x !== y) {
+      // A missing part sorts after a qualifier, so 1.0 > 1.0-SNAPSHOT.
+      if (x === "") return 1;
+      if (y === "") return -1;
+      return x < y ? -1 : 1;
+    }
+  }
+  return 0;
+}
+
+// ---- Loading the index ----
+
+async function fetchTree() {
+  const key = `tree:${OWNER}/${REPO}@${BRANCH}`;
+  try {
+    const cached = JSON.parse(sessionStorage.getItem(key));
+    if (cached && Date.now() - cached.at < CACHE_TTL_MS) return cached.tree;
+  } catch {}
+  const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/git/trees/${BRANCH}?recursive=1`);
+  if (!res.ok) {
+    const limited = res.status === 403 && res.headers.get("x-ratelimit-remaining") === "0";
+    throw new Error(limited
+      ? "GitHub API rate limit reached (60 requests/hour per IP). Try again later."
+      : `GitHub API returned ${res.status}.`);
+  }
+  const data = await res.json();
+  const tree = data.tree.filter(e => e.type === "blob").map(e => ({ path: e.path, size: e.size }));
+  try { sessionStorage.setItem(key, JSON.stringify({ at: Date.now(), tree })); } catch {}
+  if (data.truncated) console.warn("GitHub tree listing was truncated; some artifacts may be missing.");
+  return tree;
+}
+
+// Every version directory holds a .pom, so .pom files give us group/artifact/version.
+function buildIndex(tree) {
+  const artifacts = new Map();
+  for (const { path } of tree) {
+    const parts = path.split("/");
+    if (parts.length < 4) continue;
+    const dir = parts.slice(0, -1).join("/");
+    const version = parts.at(-2), artifactId = parts.at(-3);
+    const groupId = parts.slice(0, -3).join(".");
+    const key = `${groupId}:${artifactId}`;
+    if (path.endsWith(".pom")) {
+      let a = artifacts.get(key);
+      if (!a) artifacts.set(key, a = { groupId, artifactId, path: parts.slice(0, -2).join("/"), versions: new Map() });
+      if (!a.versions.has(version)) a.versions.set(version, { version, dir, files: [] });
+    }
+  }
+  // Second pass so files listed before their .pom are still picked up.
+  for (const { path, size } of tree) {
+    const parts = path.split("/");
+    if (parts.length < 4) continue;
+    const a = artifacts.get(`${parts.slice(0, -3).join(".")}:${parts.at(-3)}`);
+    const v = a?.versions.get(parts.at(-2));
+    if (v && v.dir === parts.slice(0, -1).join("/")) v.files.push({ name: parts.at(-1), path, size });
+  }
+  for (const a of artifacts.values()) {
+    a.sortedVersions = [...a.versions.keys()].sort(compareVersions).reverse();
+  }
+  return [...artifacts.values()].sort((x, y) =>
+    (x.groupId + ":" + x.artifactId).localeCompare(y.groupId + ":" + y.artifactId));
+}
+
+async function fetchXml(path) {
+  const res = await fetch(REPO_URL + path);
+  if (!res.ok) throw new Error(`${path}: HTTP ${res.status}`);
+  return new DOMParser().parseFromString(await res.text(), "application/xml");
+}
+
+// POMs use a default namespace, so match on localName and only direct children.
+const child = (el, name) => el && [...el.children].find(c => c.localName === name);
+const children = (el, name) => el ? [...el.children].filter(c => c.localName === name) : [];
+const text = (el, name) => child(el, name)?.textContent.trim();
+
+function parsePom(doc, fallbackVersion) {
+  const project = doc.documentElement;
+  const props = {};
+  for (const p of child(project, "properties")?.children ?? []) props[p.localName] = p.textContent.trim();
+  const version = text(project, "version") ?? text(child(project, "parent"), "version") ?? fallbackVersion;
+  Object.assign(props, { "project.version": version, "version": version });
+  const interp = s => s?.replace(/\$\{([^}]+)\}/g, (m, k) => props[k] ?? m);
+  return {
+    name: text(project, "name"),
+    description: text(project, "description"),
+    url: text(project, "url"),
+    packaging: text(project, "packaging") ?? "jar",
+    licenses: children(child(project, "licenses"), "license").map(l => text(l, "name")).filter(Boolean),
+    dependencies: children(child(project, "dependencies"), "dependency").map(d => ({
+      groupId: interp(text(d, "groupId")),
+      artifactId: interp(text(d, "artifactId")),
+      version: interp(text(d, "version")),
+      scope: text(d, "scope") ?? "compile",
+      optional: text(d, "optional") === "true",
+    })),
+  };
+}
+
+// ---- Views ----
+
+let index = [];
+
+function crumbs(a, version) {
+  const bits = [`<a href="#/">root</a>`];
+  if (a) bits.push(`<span>${esc(a.groupId)}</span>`, `<a href="#/${esc(a.path)}">${esc(a.artifactId)}</a>`);
+  if (version) bits.push(`<span>${esc(version)}</span>`);
+  return `<div class="crumbs">${bits.join(" <span>/</span> ")}</div>`;
+}
+
+function renderHome(query = "") {
+  app.innerHTML = `
+    <input type="search" id="q" placeholder="Search group or artifact…" value="${esc(query)}" autofocus>
+    <div id="list"></div>`;
+  const q = document.getElementById("q");
+  const draw = () => {
+    const term = q.value.trim().toLowerCase();
+    const hits = index.filter(a => `${a.groupId}:${a.artifactId}`.toLowerCase().includes(term));
+    document.getElementById("list").innerHTML = hits.length
+      ? `<div class="card"><h2>${hits.length} artifact${hits.length === 1 ? "" : "s"}</h2>${hits.map(a => `
+          <div class="row">
+            <div>
+              <div class="group">${esc(a.groupId)}</div>
+              <a class="name" href="#/${esc(a.path)}">${esc(a.artifactId)}</a>
+            </div>
+            <div class="meta">${esc(a.sortedVersions[0])} · ${a.versions.size} version${a.versions.size === 1 ? "" : "s"}</div>
+          </div>`).join("")}</div>`
+      : `<p class="msg">No artifacts match.</p>`;
+  };
+  q.addEventListener("input", draw);
+  draw();
+}
+
+async function renderArtifact(a) {
+  let release, lastUpdated;
+  try {
+    const meta = await fetchXml(`${a.path}/maven-metadata.xml`);
+    const v = child(meta.documentElement, "versioning");
+    release = text(v, "release") ?? text(v, "latest");
+    const lu = text(v, "lastUpdated");
+    if (lu) lastUpdated = `${lu.slice(0, 4)}-${lu.slice(4, 6)}-${lu.slice(6, 8)}`;
+  } catch { /* metadata is optional for browsing */ }
+  app.innerHTML = `${crumbs(a)}
+    <div class="card"><h2>Versions${lastUpdated ? ` · updated ${esc(lastUpdated)}` : ""}</h2>
+      ${a.sortedVersions.map(v => `
+        <div class="row">
+          <a class="name" href="#/${esc(a.path)}/${esc(v)}">${esc(v)}</a>
+          <span>${v === release ? `<span class="badge">release</span>` : ""}${v.endsWith("-SNAPSHOT") ? `<span class="badge">snapshot</span>` : ""}</span>
+        </div>`).join("")}
+    </div>`;
+}
+
+function snippets(g, a, v) {
+  const coord = `${g}:${a}:${v}`;
+  return {
+    "Gradle (Kotlin)": `repositories {\n    maven("${REPO_URL}")\n}\n\ndependencies {\n    implementation("${coord}")\n}`,
+    "Gradle (Groovy)": `repositories {\n    maven { url '${REPO_URL}' }\n}\n\ndependencies {\n    implementation '${coord}'\n}`,
+    "Maven": `<repository>\n    <id>prometheus</id>\n    <url>${REPO_URL}</url>\n</repository>\n\n<dependency>\n    <groupId>${g}</groupId>\n    <artifactId>${a}</artifactId>\n    <version>${v}</version>\n</dependency>`,
+  };
+}
+
+async function renderVersion(a, version) {
+  const v = a.versions.get(version);
+  const files = v.files.filter(f => !CHECKSUM_RE.test(f.name)).sort((x, y) => x.name.localeCompare(y.name));
+  const sums = name => v.files.filter(f => f.name.startsWith(name + ".") && CHECKSUM_RE.test(f.name));
+  const pomFile = files.filter(f => f.name.endsWith(".pom")).at(-1);
+
+  let pom = null, pomError = null;
+  try { pom = parsePom(await fetchXml(pomFile.path), version); } catch (e) { pomError = e.message; }
+
+  const snips = snippets(a.groupId, a.artifactId, version);
+  const tabNames = Object.keys(snips);
+
+  app.innerHTML = `${crumbs(a, version)}
+    ${pom && (pom.name || pom.description || pom.url || pom.licenses.length) ? `<div class="card"><h2>About</h2>
+      ${pom.name ? `<p class="desc"><strong>${esc(pom.name)}</strong></p>` : ""}
+      ${pom.description ? `<p class="desc">${esc(pom.description)}</p>` : ""}
+      ${pom.url ? `<p class="desc"><a href="${esc(pom.url)}" rel="noopener">${esc(pom.url)}</a></p>` : ""}
+      ${pom.licenses.length ? `<p class="desc scope">License: ${pom.licenses.map(esc).join(", ")}</p>` : ""}
+    </div>` : ""}
+
+    <div class="card"><h2>Usage</h2>
+      <div class="tabs" role="tablist">${tabNames.map((t, i) =>
+        `<button role="tab" aria-selected="${i === 0}" data-tab="${i}">${esc(t)}</button>`).join("")}</div>
+      <div class="snippet"><pre id="snip"></pre><button class="copy" id="copy">Copy</button></div>
+    </div>
+
+    <div class="card"><h2>Files</h2>${files.map(f => `
+      <div class="row">
+        <a class="name" href="${esc(REPO_URL + f.path)}">${esc(f.name)}</a>
+        <span class="meta">${formatSize(f.size)}<span class="sums">${sums(f.name).map(s =>
+          `<a href="${esc(REPO_URL + s.path)}">${esc(s.name.split(".").pop())}</a>`).join("")}</span></span>
+      </div>`).join("")}
+    </div>
+
+    <div class="card"><h2>Dependencies</h2>${
+      pomError ? `<p class="desc err">Could not load POM: ${esc(pomError)}</p>`
+      : pom.dependencies.length ? pom.dependencies.map(d => {
+          const local = index.find(x => x.groupId === d.groupId && x.artifactId === d.artifactId);
+          const label = `${esc(d.groupId)}:${esc(d.artifactId)}${d.version ? ":" + esc(d.version) : ""}`;
+          return `<div class="row">
+            <span class="name">${local ? `<a href="#/${esc(local.path)}${d.version && local.versions.has(d.version) ? "/" + esc(d.version) : ""}">${label}</a>` : label}</span>
+            <span class="scope">${esc(d.scope)}${d.optional ? " · optional" : ""}</span>
+          </div>`;
+        }).join("")
+      : `<p class="desc scope">No dependencies.</p>`
+    }</div>`;
+
+  const pre = document.getElementById("snip");
+  let current = 0;
+  const show = i => {
+    current = i;
+    pre.textContent = snips[tabNames[i]];
+    app.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab == i));
+  };
+  app.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => show(+b.dataset.tab)));
+  document.getElementById("copy").addEventListener("click", async e => {
+    try { await navigator.clipboard.writeText(snips[tabNames[current]]); e.target.textContent = "Copied"; }
+    catch { e.target.textContent = "Copy failed"; }
+    setTimeout(() => e.target.textContent = "Copy", 1500);
+  });
+  show(0);
+}
+
+// ---- Routing: #/<group/path>/<artifactId>[/<version>] ----
+
+async function route() {
+  const path = decodeURIComponent(location.hash.replace(/^#\/?/, "")).replace(/\/$/, "");
+  if (!path) return renderHome();
+  const a = index.find(x => path === x.path || path.startsWith(x.path + "/"));
+  if (!a) return renderHome(path.replace(/\//g, "."));
+  const version = path.slice(a.path.length + 1);
+  if (!version) return renderArtifact(a);
+  if (!a.versions.has(version)) {
+    app.innerHTML = `${crumbs(a)}<p class="msg">Version ${esc(version)} not found.</p>`;
+    return;
+  }
+  return renderVersion(a, version);
+}
+
+(async () => {
+  try {
+    index = buildIndex(await fetchTree());
+  } catch (e) {
+    app.innerHTML = `<p class="msg err">${esc(e.message)}</p>`;
+    return;
+  }
+  window.addEventListener("hashchange", route);
+  route();
+})();
+</script>
+</body>
+</html>
